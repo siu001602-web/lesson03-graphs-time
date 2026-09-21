@@ -102,40 +102,109 @@ fig2.update_traces(
 st.plotly_chart(fig2, use_container_width=True)
 
 # 그래프 해석 문구 자리
-st.info("💡 **이 그래프로 알 수 있는 것:** 기간 내 가장 많은 관객을 모은 흥행 TOP 5 영화들의 흥행```python
-import plotly.express as px
+st.info("💡 **이 그래프로 알 수 있는 것:** 기간 내 가장 많은 관객을 모은 흥행 TOP 5 영화들의 흥행 피크 시점과 상영 기간별 관객수 유지력을 한눈에 비교할 수 있습니다. (우측 범례 항목을 클릭해 특정 영화 선을 켜거나 끌 수 있습니다.)")
 
-# 1. 영화별 누적 관객수 계산 및 상위 10개 영화 추출
-top10_movies = (
-    df.groupby('movieNm')['audiCnt']
-    .sum()
-    .nlargest(10)
+st.markdown("---")
+
+# 6. 구역 3: 날짜별 10위권 전체 일관객 합계 영역 그래프
+st.header("📌 Section 3. 날짜별 박스오피스 TOP 10 전체 관객수 합계")
+
+# 날짜별 10위권 일관객 합계 계산
+daily_total_df = df.groupby("날짜")["일관객"].sum().reset_index().sort_values("날짜")
+
+# 일관객 합계가 가장 컸던 날 Top 3 추출
+top3_days = daily_total_df.nlargest(3, "일관객")
+
+# Plotly 영역 그래프(Area Chart) 생성
+fig3 = px.area(
+    daily_total_df,
+    x="날짜",
+    y="일관객",
+    title="날짜별 박스오피스 10위권 일관객 총합 추이",
+    labels={"날짜": "날짜", "일관객": "10위권 일관객 총합(명)"},
+)
+
+# 마우스 호버 설정
+fig3.update_traces(
+    hovertemplate="<b>날짜</b>: %{x|%Y-%m-%d}<br><b>전체 일관객수</b>: %{y:,}명<extra></extra>",
+    line_color="#2b5c8f",
+)
+
+# 관객수 Top 3 날짜를 그래프 상에 주석(Annotation)으로 표시
+for i, row in enumerate(top3_days.itertuples(), start=1):
+    date_str = row.날짜.strftime("%Y-%m-%d")
+    audience_cnt = row.일관객
+
+    fig3.add_annotation(
+        x=row.날짜,
+        y=audience_cnt,
+        text=f"<b>{i}위: {date_str}</b><br>({audience_cnt:,}명)",
+        showarrow=True,
+        arrowhead=2,
+        arrowsize=1,
+        arrowwidth=2,
+        arrowcolor="red",
+        ax=0,
+        ay=-40,
+        bgcolor="rgba(255, 255, 255, 0.8)",
+        bordercolor="red",
+        borderwidth=1,
+        borderpad=4,
+    )
+
+# 그래프 출력
+st.plotly_chart(fig3, use_container_width=True)
+
+# 그래프 해석 문구 자리
+st.info("💡 **이 그래프로 알 수 있는 것:** 극장가 전체의 성수기/비수기 패턴과 연중 가장 많은 관객이 몰렸던 역대급 흥행 일자 Top 3를 한눈에 파악할 수 있습니다.")
+
+st.markdown("---")
+
+# 7. 구역 4: 기간 내 총 관객수 TOP 10 영화 가로 막대그래프
+st.header("📌 Section 4. 기간 내 총 관객수 TOP 10 영화")
+
+# 영화별 총 관객수 및 10위권 진입 일수(차트인 일수) 집계
+top10_stats = (
+    df.groupby("영화명")
+    .agg(
+        총관객수=("일관객", "sum"),
+        차트인일수=("날짜", "nunique")
+    )
     .reset_index()
+    .nlargest(10, "총관객수")
 )
 
-# 2. 각 영화별 10위권 이내 진입 일수 계산
-# (데이터프레임에 rank 칼럼이 없더라도 TOP 10 데이터셋 내 일수를 집계)
-top10_days = (
-    df[df['movieNm'].isin(top10_movies['movieNm'])]
-    .groupby('movieNm')['targetDt']
-    .nunique()
-    .reset_index(name='top10_days')
-)
+# 관객수가 많은 영화가 위쪽에 나오도록 오름차순 정렬 (Plotly y축 표시 특성 반영)
+top10_stats = top10_stats.sort_values("총관객수", ascending=True)
 
-# 3. 데이터 합치기
-top10_df = top10_movies.merge(top10_days, on='movieNm')
-
-# 4. 관객 수가 많은 영화가 위에 오도록 정렬 (Plotly y축 역순 정렬 대응)
-top10_df = top10_df.sort_values(by='audiCnt', ascending=True)
-
-# 5. 가로 막대그래프 생성
+# Plotly 가로 막대그래프 생성
 fig4 = px.bar(
-    top10_df,
-    x='audiCnt',
-    y='movieNm',
-    orientation='h',
-    title='기간 내 누적 관객수 TOP 10 영화',
-    labels={
-        'audiCnt': '총 관객수(명)',
-        'movieNm': '영화 제목',
-        'top10_days': '10
+    top10_stats,
+    x="총관객수",
+    y="영화명",
+    orientation="h",
+    title="기간 내 총 관객수 TOP 10 영화 순위",
+    labels={"총관객수": "총 관객수(명)", "영화명": "영화 제목", "차트인일수": "10위권 진입 일수"},
+    custom_data=["차트인일수"],
+    text_auto=".2s",  # 막대 끝에 관객수 축약 표기
+)
+
+# 마우스 호버 커스텀 (10위권에 든 날수 포함)
+fig4.update_traces(
+    hovertemplate="<b>영화명</b>: %{y}<br><b>총 관객수</b>: %{x:,}명<br><b>10위권 진입 일수</b>: %{customdata[0]}일<extra></extra>",
+    marker_color="#4C78A8",
+)
+
+# 그래프 출력
+st.plotly_chart(fig4, use_container_width=True)
+
+# 그래프 해석 문구 자리
+st.info("💡 **이 그래프로 알 수 있는 것:** 기간 내 최상위 흥행을 기록한 10개 작품의 총 관객 규모와 흥행 기간(10위권 유지 일수)의 상관관계를 비교할 수 있습니다.")
+
+st.markdown("---")
+
+# 8. 구역 5: 추후 그래프 추가용 구역
+st.header("📌 Section 5. 추가 그래프 구역")
+st.write("앞으로 시간 축 기반의 새로운 그래프가 이곳에 추가될 예정입니다.")
+
+st.info("💡 **이 그래프로 알 수 있는 것:** (새로운 그래프에 대한 분석 설명이 들어갈 자리입니다.)")
