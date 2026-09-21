@@ -93,7 +93,7 @@ fig2 = px.line(
     markers=False,
 )
 
-# Hover format 및 범례 설정 (범례 클릭 시 On/Off 가능)
+# Hover format 및 범례 설정
 fig2.update_traces(
     hovertemplate="<b>영화명</b>: %{fullData.name}<br><b>날짜</b>: %{x|%Y-%m-%d}<br><b>일관객수</b>: %{y:,}명<extra></extra>"
 )
@@ -106,8 +106,62 @@ st.info("💡 **이 그래프로 알 수 있는 것:** 기간 내 가장 많은 
 
 st.markdown("---")
 
-# 6. 구역 3: 추후 그래프 추가용 구역
-st.header("📌 Section 3. 추가 그래프 구역")
+# 6. 구역 3: 날짜별 10위권 전체 일관객 합계 영역 그래프
+st.header("📌 Section 3. 날짜별 박스오피스 TOP 10 전체 관객수 합계")
+
+# 날짜별 10위권 일관객 합계 계산
+daily_total_df = df.groupby("날짜")["일관객"].sum().reset_index().sort_values("날짜")
+
+# 일관객 합계가 가장 컸던 날 Top 3 추출
+top3_days = daily_total_df.nlargest(3, "일관객")
+
+# Plotly 영역 그래프(Area Chart) 생성
+fig3 = px.area(
+    daily_total_df,
+    x="날짜",
+    y="일관객",
+    title="날짜별 박스오피스 10위권 일관객 총합 추이",
+    labels={"날짜": "날짜", "일관객": "10위권 일관객 총합(명)"},
+)
+
+# 마우스 호버 설정
+fig3.update_traces(
+    hovertemplate="<b>날짜</b>: %{x|%Y-%m-%d}<br><b>전체 일관객수</b>: %{y:,}명<extra></extra>",
+    line_color="#2b5c8f",
+)
+
+# 관객수 Top 3 날짜를 그래프 상에 주석(Annotation)으로 표시
+for i, row in enumerate(top3_days.itertuples(), start=1):
+    date_str = row.날짜.strftime("%Y-%m-%d")
+    audience_cnt = row.일관객
+
+    fig3.add_annotation(
+        x=row.날짜,
+        y=audience_cnt,
+        text=f"<b>{i}위: {date_str}</b><br>({audience_cnt:,}명)",
+        showarrow=True,
+        arrowhead=2,
+        arrowsize=1,
+        arrowwidth=2,
+        arrowcolor="red",
+        ax=0,
+        ay=-40,  # 텍스트 위치를 화살표 위쪽으로 조정
+        bgcolor="rgba(255, 255, 255, 0.8)",
+        bordercolor="red",
+        borderwidth=1,
+        borderpad=4,
+    )
+
+# 그래프 출력
+st.plotly_chart(fig3, use_container_width=True)
+
+# 그래프 해석 문구 자리
+st.info("💡 **이 그래프로 알 수 있는 것:** 극장가 전체의 성수기/비수기 패턴과 연중 가장 많은 관객이 몰렸던 역대급 흥행 일자 Top 3를 한눈에 파악할 수 있습니다.")
+
+st.markdown("---")
+
+# 7. 구역 4: 추후 그래프 추가용 구역
+st.header("📌 Section 4. 추가 그래프 구역")
 st.write("앞으로 시간 축 기반의 새로운 그래프가 이곳에 추가될 예정입니다.")
 
 st.info("💡 **이 그래프로 알 수 있는 것:** (새로운 그래프에 대한 분석 설명이 들어갈 자리입니다.)")
