@@ -186,10 +186,10 @@ fig4 = px.bar(
     title="기간 내 총 관객수 TOP 10 영화 순위",
     labels={"총관객수": "총 관객수(명)", "영화명": "영화 제목", "차트인일수": "10위권 진입 일수"},
     custom_data=["차트인일수"],
-    text_auto=".2s",  # 막대 끝에 관객수 축약 표기
+    text_auto=".2s",
 )
 
-# 마우스 호버 커스텀 (10위권에 든 날수 포함)
+# 마우스 호버 커스텀
 fig4.update_traces(
     hovertemplate="<b>영화명</b>: %{y}<br><b>총 관객수</b>: %{x:,}명<br><b>10위권 진입 일수</b>: %{customdata[0]}일<extra></extra>",
     marker_color="#4C78A8",
@@ -203,8 +203,68 @@ st.info("💡 **이 그래프로 알 수 있는 것:** 기간 내 최상위 흥�
 
 st.markdown("---")
 
-# 8. 구역 5: 추후 그래프 추가용 구역
-st.header("📌 Section 5. 추가 그래프 구역")
+# 8. 구역 5: 월×요일별 일관객 합계 히트맵
+st.header("📌 Section 5. 월×요일별 관객수 분포 히트맵")
+
+# 날짜에서 월과 요일 추출
+df_heatmap = df.copy()
+df_heatmap["월"] = df_heatmap["날짜"].dt.month.astype(str) + "월"
+
+# 요일 한글 변환 및 순서 고정 (월요일 ~ 일요일)
+days_order = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
+day_map = {
+    "Monday": "월요일",
+    "Tuesday": "화요일",
+    "Wednesday": "수요일",
+    "Thursday": "목요일",
+    "Friday": "금요일",
+    "Saturday": "토요일",
+    "Sunday": "일요일",
+}
+df_heatmap["요일"] = df_heatmap["날짜"].dt.day_name().map(day_map)
+
+# 월(1월~12월) 순서 정렬용
+months_order = [f"{m}월" for m in range(1, 13)]
+
+# 월×요일별 일관객 합계 집계
+heatmap_pivot = (
+    df_heatmap.groupby(["월", "요일"])["일관객"]
+    .sum()
+    .reset_index()
+)
+
+# 피벗 테이블 형태로 변환 (행: 요일, 열: 월)
+pivot_table = heatmap_pivot.pivot(index="요일", columns="월", values="일관객")
+
+# 순서 재정렬 (월~일, 1월~12월)
+pivot_table = pivot_table.reindex(index=days_order, columns=[m for m in months_order if m in pivot_table.columns])
+
+# Plotly 히트맵 생성 (관객이 많을수록 진한 색상)
+fig5 = px.imshow(
+    pivot_table,
+    labels=dict(x="월", y="요일", color="일관객 합계(명)"),
+    x=pivot_table.columns,
+    y=pivot_table.index,
+    color_continuous_scale="Blues",  # 값이 클수록 진한 푸른색
+    title="월 및 요일별 일관객 합계 히트맵",
+    text_auto=",d",  # 수치 콤마 표시
+)
+
+# 마우스 호버 커스텀
+fig5.update_traces(
+    hovertemplate="<b>%{x} %{y}</b><br><b>일관객 합계</b>: %{z:,}명<extra></extra>"
+)
+
+# 그래프 출력
+st.plotly_chart(fig5, use_container_width=True)
+
+# 그래프 해석 문구 자리
+st.info("💡 **이 그래프로 알 수 있는 것:** 월별 성수기/비수기와 요일별(주말 vs 평일) 관객 집중 현상을 종합적으로 분석하여 극장 방문이 가장 활발한 시기를 한눈에 파악할 수 있습니다.")
+
+st.markdown("---")
+
+# 9. 구역 6: 추후 그래프 추가용 구역
+st.header("📌 Section 6. 추가 그래프 구역")
 st.write("앞으로 시간 축 기반의 새로운 그래프가 이곳에 추가될 예정입니다.")
 
 st.info("💡 **이 그래프로 알 수 있는 것:** (새로운 그래프에 대한 분석 설명이 들어갈 자리입니다.)")
